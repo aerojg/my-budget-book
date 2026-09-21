@@ -1,0 +1,13 @@
+# 파이썬이 자동으로 만드는 파일
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 비밀 정보 (절대 올리지 않는다)
+.env
+secrets.toml
+.streamlit/secrets.toml
+
+# 내 가계 데이터 (개인 정보라서 올리지 않는다)
+data/
