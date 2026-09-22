@@ -4,6 +4,18 @@ from pathlib import Path
 
 import streamlit as st
 
+# 글씨를 전체적으로 키우는 설정
+st.markdown("""
+<style>
+html, body, [class*="css"]  { font-size: 20px !important; }
+h1 { font-size: 40px !important; }
+h3 { font-size: 26px !important; }
+label { font-size: 20px !important; }
+.stButton button { font-size: 20px !important; padding: 0.6em 1.2em !important; }
+div[role="radiogroup"] label { font-size: 20px !important; }
+</style>
+""", unsafe_allow_html=True)
+
 st.title("나의 가계부")
 
 # 선택지 목록 (인수인계서 3-1에서 확정한 값)
@@ -40,7 +52,7 @@ def load_expenses():
         return []
     with open(DATA_FILE, newline="", encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
-    return list(reversed(rows))  # 맨 아래(최신)부터 보이도록 순서를 뒤집는다
+    return list(reversed(rows))
 
 
 # 메모지: 지금 어느 화면인지(step), 입력한 내용(draft)을 적어 둔다
@@ -57,16 +69,32 @@ if st.session_state.step == "input":
 
     date_value = st.date_input("날짜", value=draft.get("date", date.today()), format="YYYY-MM-DD")
     amount = st.number_input("금액 (원)", min_value=0, step=1000, value=draft.get("amount", 0), format="%d")
-    category = st.radio("카테고리", CATEGORIES, index=CATEGORIES.index(draft.get("category", CATEGORIES[0])), horizontal=True)
+
+    # 처음엔 아무것도 선택되지 않은 상태로 시작 (index=None)
+    category = st.radio(
+        "카테고리 (하나를 눌러 선택해 주세요)",
+        CATEGORIES,
+        index=CATEGORIES.index(draft["category"]) if draft.get("category") else None,
+        horizontal=True,
+    )
     item_name = st.text_input("항목명", value=draft.get("item_name", ""), placeholder="예: 마트 장보기")
-    payment = st.radio("결제수단", PAYMENTS, index=PAYMENTS.index(draft.get("payment", PAYMENTS[0])), horizontal=True)
+    payment = st.radio(
+        "결제수단 (하나를 눌러 선택해 주세요)",
+        PAYMENTS,
+        index=PAYMENTS.index(draft["payment"]) if draft.get("payment") else None,
+        horizontal=True,
+    )
     memo = st.text_input("메모 (선택)", value=draft.get("memo", ""), placeholder="필요할 때만 적어 주세요")
 
     if st.button("저장하기"):
         if amount <= 0:
             st.warning("금액을 입력해 주세요.")
+        elif category is None:
+            st.warning("카테고리를 선택해 주세요.")
         elif not item_name.strip():
             st.warning("항목명을 입력해 주세요.")
+        elif payment is None:
+            st.warning("결제수단을 선택해 주세요.")
         else:
             st.session_state.draft = {
                 "date": date_value,
