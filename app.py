@@ -11,7 +11,6 @@ CATEGORIES = ["식비", "교통비", "주거/관리비", "의료/건강", "통�
 PAYMENTS = ["신용카드", "체크카드", "현금", "계좌이체"]
 
 # 저장 파일: app.py와 같은 폴더 안의 data/expenses.csv
-# data/ 폴더는 .gitignore에 들어 있어 GitHub에 올라가지 않는다
 DATA_FILE = Path(__file__).parent / "data" / "expenses.csv"
 COLUMNS = ["날짜", "금액", "카테고리", "항목명", "결제수단", "메모", "입력방식"]
 
@@ -20,11 +19,10 @@ def save_expense(d):
     """지출 한 건을 CSV 파일 맨 아래 한 줄로 적는다."""
     DATA_FILE.parent.mkdir(exist_ok=True)
     is_new = not DATA_FILE.exists() or DATA_FILE.stat().st_size == 0
-    # utf-8-sig: 엑셀에서 열어도 한글이 깨지지 않게 하는 저장 방식
     with open(DATA_FILE, "a", newline="", encoding="utf-8-sig") as f:
         writer = csv.writer(f)
         if is_new:
-            writer.writerow(COLUMNS)  # 새 파일이면 맨 윗줄에 칸 제목을 먼저 적는다
+            writer.writerow(COLUMNS)
         writer.writerow([
             d["date"].strftime("%Y-%m-%d"),
             d["amount"],
@@ -32,8 +30,17 @@ def save_expense(d):
             d["item_name"],
             d["payment"],
             d["memo"],
-            "직접입력",  # 입력방식은 화면에 보이지 않고 저장할 때 자동으로 적는다
+            "직접입력",
         ])
+
+
+def load_expenses():
+    """저장된 지출을 모두 읽어서, 최신 입력이 맨 위로 오는 목록으로 돌려준다."""
+    if not DATA_FILE.exists():
+        return []
+    with open(DATA_FILE, newline="", encoding="utf-8-sig") as f:
+        rows = list(csv.DictReader(f))
+    return list(reversed(rows))  # 맨 아래(최신)부터 보이도록 순서를 뒤집는다
 
 
 # 메모지: 지금 어느 화면인지(step), 입력한 내용(draft)을 적어 둔다
@@ -102,7 +109,7 @@ elif st.session_state.step == "confirm":
         st.session_state.step = "input"
         st.rerun()
 
-else:
+elif st.session_state.step == "done":
     # ---------- 3. 완료 화면 ----------
     st.success("✓ 저장되었습니다")
 
@@ -112,4 +119,35 @@ else:
         st.rerun()
 
     if st.button("목록 보기"):
-        st.info("목록 화면은 다음 단계에서 만듭니다.")
+        st.session_state.step = "list"
+        st.rerun()
+
+else:
+    # ---------- 4. 목록 화면 ----------
+    st.subheader("지금까지 입력한 지출")
+
+    expenses = load_expenses()
+
+    if not expenses:
+        st.info("아직 저장된 지출이 없습니다.")
+    else:
+        total = sum(int(row["금액"]) for row in expenses)
+        st.write(f"총 {len(expenses)}건, 합계 {total:,}원")
+
+        table = [
+            {
+                "날짜": row["날짜"],
+                "금액": f"{int(row['금액']):,}원",
+                "카테고리": row["카테고리"],
+                "항목명": row["항목명"],
+                "결제수단": row["결제수단"],
+                "메모": row["메모"] if row["메모"] else "",
+            }
+            for row in expenses
+        ]
+        st.table(table)
+
+    if st.button("하나 더 입력"):
+        st.session_state.draft = {}
+        st.session_state.step = "input"
+        st.rerun()
